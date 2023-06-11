@@ -34,22 +34,13 @@ class _MultiTabBottomAppScaffoldState extends State<MultiTabBottomAppScaffold>
     scrollCtrl = ScrollController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      scrollCtrl.animateTo(
-        // ignore: use_build_context_synchronously
-        MediaQuery.of(context).size.width *
-            AppConstant.deviceWidthFactorForNavBarPages *
-            selectedPageIndex,
-        duration: kTabScrollDuration,
-        curve: Curves.decelerate,
-      );
-
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 600), () {
           setState(() {
             isPageLoaded = true;
           });
-        }
-      });
+        });
+      }
     });
   }
 

@@ -49,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
           widget.selectedPageIndex != 0) {
         removeAllitems();
       }
-      super.didUpdateWidget(widget);
     } else {
       super.didUpdateWidget(oldWidget);
     }
@@ -59,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       for (var element in verticalList.reversed) {
         if (verticalListKey.currentState == null) {
-          break;
+          continue;
         }
         verticalListKey.currentState!.removeItem(
           verticalList.indexOf(element),
@@ -88,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       for (var element in verticalList) {
         if (verticalListKey.currentState == null) {
-          break;
+          continue;
         }
         verticalListKey.currentState!.insertItem(verticalList.indexOf(element));
         await Future.delayed(const Duration(milliseconds: 100));

@@ -54,7 +54,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     try {
       for (var element in verticalList.reversed) {
         if (verticalListKey.currentState == null) {
-          break;
+          continue;
         }
         verticalListKey.currentState!.removeItem(
           verticalList.indexOf(element),
@@ -85,24 +85,20 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
               child: element,
             );
-            // return TweenAnimationBuilder<double>(
-            //   tween: Tween<double>(begin: 1, end: 0),
-            //   duration: const Duration(milliseconds: 600),
-            //   curve: const Interval(0.25, 1.0, curve: Curves.easeInOutCubic),
-            //   builder: (context, value, child) => Opacity(
-            //     opacity: value,
-            //     child: Transform.translate(
-            //       offset: Offset(0, -((100 * -value) + 100)),
-            //       child: child,
-            //     ),
-            //   ),
-            //   child: element,
-            // );
           },
         );
-        await Future.delayed(Duration(
+        await Future.delayed(
+          Duration(
             milliseconds:
-                (verticalList.length ~/ verticalList.indexOf(element)) * 50));
+                10 * (verticalList.length - verticalList.indexOf(element)),
+          ),
+        );
+      }
+
+      if (verticalListKey.currentState != null) {
+        verticalListKey.currentState!.removeAllItems(
+            (context, animation) => const SizedBox(),
+            duration: Duration.zero);
       }
     } catch (e) {
       //
@@ -110,13 +106,15 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _addAll() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+
     try {
-      for (var i = 0; i < verticalList.length; i++) {
+      for (var element in verticalList) {
         if (verticalListKey.currentState == null) {
           break;
         }
 
-        verticalListKey.currentState!.insertItem(i);
+        verticalListKey.currentState!.insertItem(verticalList.indexOf(element));
         await Future.delayed(const Duration(milliseconds: 50));
       }
     } catch (e) {
@@ -167,8 +165,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     super.dispose();
   }
 
-  Widget verticalListWidget(int index, Animation<double> animation) {
-    if (index > 0) {
+  Widget verticalListWidget(Animation<double> animation, Widget child) {
+    if (verticalList.indexOf(child) > 0) {
       return SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(0.5, 0),
@@ -179,7 +177,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             curve: Curves.easeIn,
           ),
         ),
-        child: verticalList[index],
+        child: child,
       );
     }
     return SlideTransition(
@@ -192,27 +190,15 @@ class _HistoryScreenState extends State<HistoryScreen>
           curve: Curves.easeIn,
         ),
       ),
-      child: verticalList[index],
+      child: child,
     );
-    // return TweenAnimationBuilder<double>(
-    //   tween: Tween<double>(begin: 0, end: 1),
-    //   duration: const Duration(milliseconds: 600),
-    //   curve: const Interval(0.25, 1.0, curve: Curves.easeInOutCubic),
-    //   builder: (context, value, child) => Opacity(
-    //     opacity: value,
-    //     child: Transform.translate(
-    //       offset: Offset(0, -((100 * -value) + 100)),
-    //       child: child,
-    //     ),
-    //   ),
-    //   child: verticalList[index],
-    // );
   }
 
   @override
   Widget build(BuildContext context) {
     verticalList = [
       AnimatedBuilder(
+        key: UniqueKey(),
         animation: animation,
         builder: (context, child) {
           if (animation.value == 1) {
@@ -227,81 +213,85 @@ class _HistoryScreenState extends State<HistoryScreen>
             child: child,
           );
         },
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: () async {
-                _reverseAll();
-                transitionAnimation.forward();
-                await Future.delayed(const Duration(milliseconds: 100));
-                await showGeneralDialog(
-                    context: context,
-                    barrierColor: Colors.transparent,
-                    pageBuilder: (context, animation, secondaryAnimation) {
-                      return AnimatedBuilder(
-                        animation: animation,
-                        builder: (context, _) {
-                          return const AddConsultationScreen();
-                        },
-                      );
-                    });
-                transitionAnimation.reverse();
-                _addAll();
-              },
-              child: AnimatedBuilder(
-                animation: transitionAnimation,
-                builder: (context, child) {
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 2),
-                    child: SizedBox(
-                      width: 60,
-                      height: 60,
-                      child: OverflowBox(
-                        alignment: Alignment.center,
-                        maxWidth: 50 * ((transitionAnimation.value * 10) - 9),
-                        minWidth: 50 * ((transitionAnimation.value * 10) - 9),
-                        maxHeight: 50 * transitionAnimation.value * 10,
-                        minHeight: 50 * transitionAnimation.value * 10,
-                        child: CircleAvatar(
-                          radius: 32 * transitionAnimation.value,
-                          backgroundColor: AppColor.blueColor.withOpacity(0.25),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () async {
+                  _reverseAll();
+                  transitionAnimation.forward();
+                  await Future.delayed(const Duration(milliseconds: 100));
+                  await showGeneralDialog(
+                      context: context,
+                      barrierColor: Colors.transparent,
+                      pageBuilder: (context, animation, secondaryAnimation) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, _) {
+                            return const AddConsultationScreen();
+                          },
+                        );
+                      });
+                  transitionAnimation.reverse();
+                  _addAll();
+                },
+                child: AnimatedBuilder(
+                  animation: transitionAnimation,
+                  builder: (context, child) {
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: SizedBox(
+                        width: 60,
+                        height: 60,
+                        child: OverflowBox(
+                          alignment: Alignment.center,
+                          maxWidth: 70 * ((transitionAnimation.value * 10) - 9),
+                          minWidth: 70 * ((transitionAnimation.value * 10) - 9),
+                          maxHeight: 70 * transitionAnimation.value * 10,
+                          minHeight: 70 * transitionAnimation.value * 10,
                           child: CircleAvatar(
-                            radius: 26 * ((transitionAnimation.value * 10) - 9),
-                            backgroundColor: AppColor.blueColor,
-                            child: Transform.translate(
-                              offset: Offset(
-                                  10 - (transitionAnimation.value * 10),
-                                  10 - (transitionAnimation.value * 10)),
-                              child: Transform.rotate(
-                                angle: (10 * transitionAnimation.value) - 10,
-                                child: const Icon(
-                                  Icons.add_rounded,
-                                  color: Colors.white,
-                                  size: 32,
+                            radius: 32 * transitionAnimation.value,
+                            backgroundColor:
+                                AppColor.blueColor.withOpacity(0.25),
+                            child: CircleAvatar(
+                              radius:
+                                  26 * ((transitionAnimation.value * 10) - 9),
+                              backgroundColor: AppColor.blueColor,
+                              child: Transform.translate(
+                                offset: Offset(
+                                    10 - (transitionAnimation.value * 10),
+                                    10 - (transitionAnimation.value * 10)),
+                                child: Transform.rotate(
+                                  angle: (10 * transitionAnimation.value) - 10,
+                                  child: const Icon(
+                                    Icons.add_rounded,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 24),
-            Text(
-              'Add consultation',
-              style: AppTextStyle.bold14.copyWith(
-                color: AppColor.blueColor,
+              const SizedBox(width: 24),
+              Text(
+                'Add consultation',
+                style: AppTextStyle.bold14.copyWith(
+                  color: AppColor.blueColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      SizedBox(key: UniqueKey(), height: 20),
       HistoryTile(
         key: UniqueKey(),
       ),
@@ -364,7 +354,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 SliverAnimatedList(
                   key: verticalListKey,
                   itemBuilder: (context, index, animation) =>
-                      verticalListWidget(index, animation),
+                      verticalListWidget(animation, verticalList[index]),
                 ),
                 const SliverToBoxAdapter(
                   child: SizedBox(height: 40),
