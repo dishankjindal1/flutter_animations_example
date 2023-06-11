@@ -9,19 +9,9 @@ class CircularTransition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          colors: [
-            Colors.white,
-            Color(0xFF0055FF),
-          ],
-        ),
-      ),
-      child: ClipOval(
-        clipper: CircularTransitionClipper(animation),
-        child: child,
-      ),
+    return ClipOval(
+      clipper: CircularTransitionClipper(animation),
+      child: child,
     );
   }
 }

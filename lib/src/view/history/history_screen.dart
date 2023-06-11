@@ -1,58 +1,126 @@
-import 'dart:async';
-import 'dart:math';
+// ignore_for_file: use_build_context_synchronously
 
-import 'package:even_assignment/src/view/history/components/history_card.dart';
+import 'dart:async';
+
+import 'package:even_assignment/src/utility/color.dart';
+import 'package:even_assignment/src/utility/style.dart';
+import 'package:even_assignment/src/view/add_consultation/add_consultation_screen.dart';
+import 'package:even_assignment/src/view/history/components/history_tile.dart';
 import 'package:flutter/material.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({required this.isSelected, super.key});
+  const HistoryScreen({required this.selectedPageIndex, super.key});
 
-  final bool isSelected;
+  final int selectedPageIndex;
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen>
-    with SingleTickerProviderStateMixin, RouteAware {
-  late final GlobalKey<SliverAnimatedListState> listKey;
-  late final List<Widget> historyList;
-
+    with TickerProviderStateMixin {
+  late final AnimationController transitionAnimation;
   late final AnimationController animation;
-
-  late final Animation<double> plusWidget;
-
+  late final ScrollController scrollController;
+  late final GlobalKey<SliverAnimatedListState> verticalListKey;
+  late List<Widget> verticalList;
+  late final ValueNotifier<double> dynamicHeightForBar;
 
   @override
   void didUpdateWidget(HistoryScreen oldWidget) {
-    if (widget.isSelected != oldWidget.isSelected) {
-      _reverseAll();
-      super.didUpdateWidget(widget);
+    if (oldWidget.selectedPageIndex != widget.selectedPageIndex) {
+      if (widget.selectedPageIndex == 1 && oldWidget.selectedPageIndex != 1) {
+        _addAll();
+        if (!animation.isCompleted) {
+          animation.forward();
+        }
+      } else if (oldWidget.selectedPageIndex == 1 &&
+          widget.selectedPageIndex != 1) {
+        _reverseAll();
+        scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.linear,
+        );
+        if (animation.isCompleted) {
+          animation.reverse();
+        }
+      }
     } else {
       super.didUpdateWidget(oldWidget);
     }
   }
 
   Future<void> _reverseAll() async {
-    animation.reverse();
-    for (var i = historyList.length - 1; i >= 0; i--) {
-      listKey.currentState!.removeItem(
-        i,
-        (context, animation) {
-          return TweenAnimationBuilder(
-            tween: Tween<double>(begin: 0, end: 50),
-            duration: const Duration(milliseconds: 100),
-            curve: Curves.easeIn,
-            builder: (context, value, _) {
-              return Transform.translate(
-                offset: Offset(value, 0),
-                child: historyList[i],
+    try {
+      for (var element in verticalList.reversed) {
+        if (verticalListKey.currentState == null) {
+          break;
+        }
+        verticalListKey.currentState!.removeItem(
+          verticalList.indexOf(element),
+          (context, animation) {
+            if (verticalList.indexOf(element) > 0) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.5, 0),
+                  end: const Offset(0, 0),
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeIn,
+                  ),
+                ),
+                child: element,
               );
-            },
-          );
-        },
-        duration: const Duration(seconds: 1),
-      );
-      await Future.delayed(const Duration(milliseconds: 100));
+            }
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0),
+                end: const Offset(0, 0),
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeIn,
+                ),
+              ),
+              child: element,
+            );
+            // return TweenAnimationBuilder<double>(
+            //   tween: Tween<double>(begin: 1, end: 0),
+            //   duration: const Duration(milliseconds: 600),
+            //   curve: const Interval(0.25, 1.0, curve: Curves.easeInOutCubic),
+            //   builder: (context, value, child) => Opacity(
+            //     opacity: value,
+            //     child: Transform.translate(
+            //       offset: Offset(0, -((100 * -value) + 100)),
+            //       child: child,
+            //     ),
+            //   ),
+            //   child: element,
+            // );
+          },
+        );
+        await Future.delayed(Duration(
+            milliseconds:
+                (verticalList.length ~/ verticalList.indexOf(element)) * 50));
+      }
+    } catch (e) {
+      //
+    }
+  }
+
+  Future<void> _addAll() async {
+    try {
+      for (var i = 0; i < verticalList.length; i++) {
+        if (verticalListKey.currentState == null) {
+          break;
+        }
+
+        verticalListKey.currentState!.insertItem(i);
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+    } catch (e) {
+      //
     }
   }
 
@@ -60,28 +128,33 @@ class _HistoryScreenState extends State<HistoryScreen>
   void initState() {
     super.initState();
 
+    transitionAnimation = AnimationController(
+      vsync: this,
+      lowerBound: 1.0,
+      upperBound: 10.0,
+      duration: const Duration(milliseconds: 500),
+    );
+
     animation = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400))..forward();
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
 
-    plusWidget = Tween<double>(begin: -100, end: 0).animate(CurvedAnimation(parent: animation, curve: Curves.easeIn));
+    dynamicHeightForBar = ValueNotifier(0);
 
-    listKey = GlobalKey<SliverAnimatedListState>();
-    historyList = List.empty(growable: true);
+    scrollController = ScrollController();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        if (timer.tick > 2 || !mounted) {
-          timer.cancel();
-        }
-        if (mounted) {
-          setState(() {
-            listKey.currentState!.insertItem(
-              historyList.length,
-              duration: const Duration(milliseconds: 0),
-            );
+    scrollController.addListener(() {
+      dynamicHeightForBar.value = scrollController.offset;
+    });
 
-            historyList.add(const HistoryCardModule());
-          });
+    verticalListKey = GlobalKey<SliverAnimatedListState>();
+    verticalList = [];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 600)).whenComplete(() {
+        if (widget.selectedPageIndex == 1) {
+          _addAll();
         }
       });
     });
@@ -89,229 +162,218 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   @override
   void dispose() {
-    animation.dispose();
-    historyList.clear();
+    verticalList.clear();
+    dynamicHeightForBar.dispose();
     super.dispose();
+  }
+
+  Widget verticalListWidget(int index, Animation<double> animation) {
+    if (index > 0) {
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.5, 0),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeIn,
+          ),
+        ),
+        child: verticalList[index],
+      );
+    }
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0.0, 0),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeIn,
+        ),
+      ),
+      child: verticalList[index],
+    );
+    // return TweenAnimationBuilder<double>(
+    //   tween: Tween<double>(begin: 0, end: 1),
+    //   duration: const Duration(milliseconds: 600),
+    //   curve: const Interval(0.25, 1.0, curve: Curves.easeInOutCubic),
+    //   builder: (context, value, child) => Opacity(
+    //     opacity: value,
+    //     child: Transform.translate(
+    //       offset: Offset(0, -((100 * -value) + 100)),
+    //       child: child,
+    //     ),
+    //   ),
+    //   child: verticalList[index],
+    // );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFC4C4C4),
-      child: SafeArea(
-        child: CustomScrollView(slivers: [
-          const SliverToBoxAdapter(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'My History',
-                  style: TextStyle(
-                    fontSize: 32,
-                  ),
-                )
-              ],
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: animation,
+    verticalList = [
+      AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) {
+          if (animation.value == 1) {
+            return Opacity(
+              opacity: 1,
+              child: child,
+            );
+          }
+
+          return Opacity(
+            opacity: 0,
+            child: child,
+          );
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: () async {
+                _reverseAll();
+                transitionAnimation.forward();
+                await Future.delayed(const Duration(milliseconds: 100));
+                await showGeneralDialog(
+                    context: context,
+                    barrierColor: Colors.transparent,
+                    pageBuilder: (context, animation, secondaryAnimation) {
+                      return AnimatedBuilder(
+                        animation: animation,
                         builder: (context, _) {
-                          return Transform.translate(
-                            offset: Offset(0, plusWidget.value),
-                            child: Center(
-                              child: CircleAvatar(
-                                radius: 40,
-                                backgroundColor:
-                                    const Color(0xFF0055FF).withOpacity(0.25),
-                                child: const CircleAvatar(
-                                  radius: 32,
-                                  backgroundColor: Color(0xFF0055FF),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.add_rounded,
-                                      color: Colors.white,
-                                      size: 42,
-                                    ),
-                                  ),
+                          return const AddConsultationScreen();
+                        },
+                      );
+                    });
+                transitionAnimation.reverse();
+                _addAll();
+              },
+              child: AnimatedBuilder(
+                animation: transitionAnimation,
+                builder: (context, child) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: OverflowBox(
+                        alignment: Alignment.center,
+                        maxWidth: 50 * ((transitionAnimation.value * 10) - 9),
+                        minWidth: 50 * ((transitionAnimation.value * 10) - 9),
+                        maxHeight: 50 * transitionAnimation.value * 10,
+                        minHeight: 50 * transitionAnimation.value * 10,
+                        child: CircleAvatar(
+                          radius: 32 * transitionAnimation.value,
+                          backgroundColor: AppColor.blueColor.withOpacity(0.25),
+                          child: CircleAvatar(
+                            radius: 26 * ((transitionAnimation.value * 10) - 9),
+                            backgroundColor: AppColor.blueColor,
+                            child: Transform.translate(
+                              offset: Offset(
+                                  10 - (transitionAnimation.value * 10),
+                                  10 - (transitionAnimation.value * 10)),
+                              child: Transform.rotate(
+                                angle: (10 * transitionAnimation.value) - 10,
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: Colors.white,
+                                  size: 32,
                                 ),
                               ),
                             ),
-                          );
-                        }),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                      child: Text(
-                    'Add consultation',
-                    style: TextStyle(
-                      color: Color(0xFF0055FF),
+                          ),
+                        ),
+                      ),
                     ),
-                  )),
-                ],
-              ),
-            ),
-          ),
-          SliverAnimatedList(
-            key: listKey,
-            itemBuilder: (context, index, animation) {
-              return TweenAnimationBuilder(
-                tween: Tween<double>(begin: 50, end: 0),
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeIn,
-                builder: (context, value, _) {
-                  return Transform.translate(
-                    offset: Offset(value, 0),
-                    child: historyList[index],
                   );
                 },
-              );
-            },
-            initialItemCount: 0,
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 40),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-
-class HistoryCardAddButton extends StatefulWidget {
-  const HistoryCardAddButton({super.key});
-
-  @override
-  State<HistoryCardAddButton> createState() => _HistoryCardAddButtonState();
-}
-
-class _HistoryCardAddButtonState extends State<HistoryCardAddButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController animation;
-
-  late final Animation<Offset> animatedSlide;
-  late final Animation<double> animatedOpacity;
-
-  bool isBottomCard = Random().nextBool();
-
-  double isRandomHeight = Random().nextInt(100).toDouble();
-
-  @override
-  void initState() {
-    super.initState();
-
-    animation = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400))
-      ..forward();
-
-    animatedSlide =
-        Tween<Offset>(begin: const Offset(0.0, 50.0), end: const Offset(0, 0))
-            .animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: const Interval(
-          0,
-          1,
-          curve: Curves.easeIn,
+              ),
+            ),
+            const SizedBox(width: 24),
+            Text(
+              'Add consultation',
+              style: AppTextStyle.bold14.copyWith(
+                color: AppColor.blueColor,
+              ),
+            ),
+          ],
         ),
       ),
-    );
-
-    animatedOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: const Interval(
-          0.25,
-          1,
-          curve: Curves.easeIn,
-        ),
+      SizedBox(key: UniqueKey(), height: 20),
+      HistoryTile(
+        key: UniqueKey(),
       ),
-    );
-  }
+      HistoryTile(
+        key: UniqueKey(),
+      ),
+      HistoryTile(
+        key: UniqueKey(),
+      ),
+    ];
 
-  @override
-  void dispose() {
-    animation.stop();
-    animation.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-        animation: animation,
-        builder: (context, _) {
-          return SliverToBoxAdapter(
-            child: Transform.translate(
-              offset: animatedSlide.value,
-              child: Opacity(
-                opacity: animatedOpacity.value,
-                child: Container(
-                  transformAlignment: Alignment.center,
-                  constraints: const BoxConstraints(
-                    minHeight: 200.0,
-                    maxHeight: 300.0,
-                    minWidth: double.infinity,
-                  ),
-                  color: const Color(0xFFC4C4C4),
-                  padding: const EdgeInsets.symmetric(horizontal: 20).add(
-                    const EdgeInsets.only(bottom: 20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('DD-MM-YYYY'),
-                            SizedBox(height: 8),
-                            Text('Today'),
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      color: Colors.transparent,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            if (scrollController.hasClients)
+              ValueListenableBuilder<double>(
+                valueListenable: dynamicHeightForBar,
+                builder: (context, dynamicHeightForBarValue, _) {
+                  return Align(
+                    alignment: const Alignment(-0.74, 0.75),
+                    child: Container(
+                      height: MediaQuery.of(context).size.height * 0.7 +
+                          dynamicHeightForBarValue,
+                      width: 3,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppColor.blueColor.withOpacity(0.25),
+                            AppColor.blueColor.withOpacity(0.0)
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 5,
-                        child: Container(
-                          height: 200.0 + isRandomHeight,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            children: [
-                              const Spacer(),
-                              if (isBottomCard)
-                                Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Container(
-                                    height: 50,
-                                    width: double.infinity,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.grey,
-                                      borderRadius: BorderRadius.vertical(
-                                        bottom: Radius.circular(20),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  );
+                },
+              ),
+            CustomScrollView(
+              controller: scrollController,
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 40),
+                ),
+                SliverToBoxAdapter(
+                  child: Text(
+                    'My History',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyle.bold18.copyWith(
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 8),
+                ),
+                SliverAnimatedList(
+                  key: verticalListKey,
+                  itemBuilder: (context, index, animation) =>
+                      verticalListWidget(index, animation),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 40),
+                ),
+              ],
             ),
-          );
-        });
+          ],
+        ),
+      ),
+    );
   }
 }

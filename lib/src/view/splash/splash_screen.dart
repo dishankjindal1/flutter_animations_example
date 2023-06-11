@@ -1,3 +1,4 @@
+import 'package:even_assignment/src/utility/utility.dart';
 import 'package:flutter/material.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -89,46 +90,39 @@ class _SplashScreenState extends State<SplashScreen>
         }
       },
       child: Material(
-        color: const Color(0xFFC4C4C4),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: AnimatedBuilder(
-                animation: animationCtrl,
-                builder: (context, _) {
-                  return Stack(
-                    alignment: AlignmentDirectional.center,
-                    children: [
-                      SizedBox(
-                        child: Text(
-                          'Beautiful Animations',
-                          style: TextStyle(
-                            fontSize: animatedFontSize.value,
-                            fontWeight: FontWeight.lerp(
-                              FontWeight.w100,
-                              FontWeight.w900,
-                              animationCtrl.value,
-                            ),
-                          ),
+        color: AppColor.backgroundColor,
+        child: AnimatedBuilder(
+            animation: animationCtrl,
+            builder: (context, _) {
+              return Stack(
+                alignment: AlignmentDirectional.center,
+                children: [
+                  Text(
+                    'Beautiful Animations',
+                    style: TextStyle(
+                      fontSize: animatedFontSize.value,
+                      fontWeight: FontWeight.lerp(
+                        FontWeight.w100,
+                        FontWeight.w900,
+                        animationCtrl.value,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment(animatedIncomingMove.value, 1),
+                    child: const Padding(
+                      padding: EdgeInsets.only(bottom: 100),
+                      child: Text(
+                        'Incoming',
+                        style: TextStyle(
+                          fontSize: 50,
                         ),
                       ),
-                      Align(
-                        alignment: Alignment(animatedIncomingMove.value, 1),
-                        child: const Padding(
-                          padding: EdgeInsets.only(bottom: 100),
-                          child: Text(
-                            'Incoming',
-                            style: TextStyle(
-                              fontSize: 50,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-          ),
-        ),
+                    ),
+                  ),
+                ],
+              );
+            }),
       ),
     );
   }
